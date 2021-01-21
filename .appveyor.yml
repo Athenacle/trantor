@@ -28,7 +28,7 @@ install:
 before_build:
 - md build
 - cd build
-- cmake --config "%CONFIGURATION%" -G "%GENERATOR%" ..
+- cmake --config "%CONFIGURATION%" -G "%GENERATOR%"  -DCMAKE_TOOLCHAIN_FILE=c:/tools/vcpkg/scripts/buildsystems/vcpkg.cmake ..
 build_script:
 - cmake --build . --config "%CONFIGURATION%"
 build:
