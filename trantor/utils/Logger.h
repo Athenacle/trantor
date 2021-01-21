@@ -22,6 +22,7 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <mutex>
 
 namespace trantor
 {
@@ -260,12 +261,17 @@ class AbstractLogger
 {
   protected:
     using level = trantor::Logger::LogLevel;
+    bool newline_{true};
 
   public:
+    auto newLine() const
+    {
+        return newline_;
+    }
     virtual void setup()
     {
     }
-    virtual void output(level, const char *, size_t) = 0;
+    virtual void output(level, const std::string &) = 0;
     virtual void flush() = 0;
     virtual ~AbstractLogger() = default;
 };
@@ -275,7 +281,7 @@ class MarkLogger : public trantor::logger::AbstractLogger
   public:
     virtual void print(const char *msg, size_t length) = 0;
 
-    virtual void output(level level, const char *msg, size_t length) override;
+    virtual void output(level level, const std::string &) override;
     virtual ~MarkLogger()
     {
     }
@@ -288,8 +294,6 @@ class LoggerManager : public NonCopyable
     static LoggerManager manager_;
 
     static level level_;
-
-    bool newline_{true};
 
     std::shared_ptr<trantor::logger::AbstractLogger> implement_;
 
@@ -312,10 +316,8 @@ class LoggerManager : public NonCopyable
     {
         level_ = l;
     }
-    static void output(level, const char *, size_t);
     static void output(level,
-                       const char *,
-                       size_t,
+                       const std::string &,
                        const char * = nullptr,
                        int = -1,
                        const char * = nullptr);
@@ -339,32 +341,28 @@ class LoggerManager : public NonCopyable
 #endif
 #endif
 
-#define BUILD_LOGGER_FUNC(level, name)                                         \
-    template <typename S, typename... Args>                                    \
-    TRANTOR_INLINE void name(const S &format_str, Args &&... args)             \
-    {                                                                          \
-        const auto level = ::trantor::Logger::LogLevel::level;                 \
-        if (LoggerManager::getLevel() <= level)                                \
-        {                                                                      \
-            LoggerManager::output(                                             \
-                level,                                                         \
-                fmt::format(format_str, std::forward<Args>(args)...).c_str()); \
-        }                                                                      \
-    }                                                                          \
-    template <int line, typename S, typename... Args>                          \
-    TRANTOR_INLINE void name(const char *filename,                             \
-                             const S &format_str,                              \
-                             Args &&... args)                                  \
-    {                                                                          \
-        const auto level = ::trantor::Logger::LogLevel::level;                 \
-        if (LoggerManager::getLevel() <= level)                                \
-        {                                                                      \
-            LoggerManager::output(                                             \
-                level,                                                         \
-                fmt::format(format_str, std::forward<Args>(args)...).c_str(),  \
-                filename,                                                      \
-                line);                                                         \
-        }                                                                      \
+#define BUILD_LOGGER_FUNC(level, name)                                       \
+    template <typename S, typename... Args>                                  \
+    TRANTOR_INLINE void name(const S &format_str, Args &&... args)           \
+    {                                                                        \
+        const auto l = trantor::Logger::LogLevel::level;                     \
+        if (LoggerManager::getLevel() <= l)                                  \
+        {                                                                    \
+            auto msg = fmt::format(format_str, std::forward<Args>(args)...); \
+            LoggerManager::output(l, msg);                                   \
+        }                                                                    \
+    }                                                                        \
+    template <int line, typename S, typename... Args>                        \
+    TRANTOR_INLINE void name(const char *filename,                           \
+                             const S &format_str,                            \
+                             Args &&... args)                                \
+    {                                                                        \
+        const auto l = trantor::Logger::LogLevel::level;                     \
+        if (LoggerManager::getLevel() <= l)                                  \
+        {                                                                    \
+            auto msg = fmt::format(format_str, std::forward<Args>(args)...); \
+            LoggerManager::output(l, msg, filename, line);                   \
+        }                                                                    \
     }
 
 BUILD_LOGGER_FUNC(kTrace, trace)

@@ -5,8 +5,13 @@
 using namespace trantor::logger;
 
 LoggerManager LoggerManager::manager_;
+
 LoggerManager::level LoggerManager::level_ =
+#ifndef NDEBUG
     ::trantor::Logger::LogLevel::kTrace;
+#else
+    ::trantor::Logger::LogLevel::kInfo;
+#endif
 
 namespace
 {
@@ -41,8 +46,7 @@ static DefaultLogManagerInstaller installer;
 }  // namespace
 
 void LoggerManager::output(level l,
-                           const char *msg,
-                           size_t length,
+                           const std::string &msg,
                            const char *file,
                            int line,
                            const char *func)
@@ -58,9 +62,10 @@ void LoggerManager::output(level l,
     {
         funcName = fmt::format("[{}]: ", func);
     }
-    auto result = fmt::format(manager_.newline_ ? "{}{} {}\n" : "{}{} {}",
-                              funcName,
-                              std::string(msg, length),
-                              fileLine);
-    manager_.implement_->output(l, result.c_str(), result.length());
+    auto result =
+        fmt::format(manager_.implement_->newLine() ? "{}{} {}\n" : "{}{} {}",
+                    funcName,
+                    msg,
+                    fileLine);
+    manager_.implement_->output(l, result);
 }

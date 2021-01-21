@@ -65,9 +65,6 @@ inline LogStream &operator<<(LogStream &s, const Logger::SourceFile &v)
 }  // namespace trantor
 using namespace trantor;
 
-static thread_local uint64_t lastSecond_{0};
-static thread_local char lastTimeString_[32] = {0};
-
 const char *trantor::logLevelStr[Logger::LogLevel::kNumberOfLogLevels] = {
     " TRACE ",
     " DEBUG ",
@@ -106,12 +103,12 @@ Logger::Logger(SourceFile file, int line, bool)
 }
 Logger::~Logger()
 {
-    trantor::logger::LoggerManager::output(level_,
-                                           logStream_.bufferData(),
-                                           logStream_.bufferLength(),
-                                           sourceFile_.data_,
-                                           fileLine_,
-                                           func_);
+    trantor::logger::LoggerManager::output(
+        level_,
+        std::string(logStream_.bufferData(), logStream_.bufferLength()),
+        sourceFile_.data_,
+        fileLine_,
+        func_);
     if (level_ >= kError)
         trantor::logger::LoggerManager::flush();
     // logStream_.resetBuffer();
@@ -156,9 +153,7 @@ void setTid()
 }
 }  // namespace
 
-void trantor::logger::MarkLogger::output(level level,
-                                         const char *msg,
-                                         size_t length)
+void trantor::logger::MarkLogger::output(level level, const std::string &msg)
 {
     if (tid == 0)
     {
