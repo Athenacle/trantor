@@ -270,8 +270,10 @@ class Date
 };
 }  // namespace trantor
 
+namespace fmt
+{
 template <>
-struct fmt::formatter<trantor::Date>
+struct formatter<trantor::Date>
 {
     constexpr auto parse(format_parse_context &ctx)
     {
@@ -284,3 +286,4 @@ struct fmt::formatter<trantor::Date>
         return format_to(ctx.out(), "{}", p.toFormattedString(true));
     }
 };
+}  // namespace fmt

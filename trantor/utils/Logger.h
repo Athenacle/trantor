@@ -341,7 +341,7 @@ class LoggerManager : public NonCopyable
 
 #define BUILD_LOGGER_FUNC(level, name)                                         \
     template <typename S, typename... Args>                                    \
-    TRANTOR_INLINE void name(const S &format_str, Args &&...args)              \
+    TRANTOR_INLINE void name(const S &format_str, Args &&... args)             \
     {                                                                          \
         const auto level = ::trantor::Logger::LogLevel::level;                 \
         if (LoggerManager::getLevel() <= level)                                \
@@ -354,7 +354,7 @@ class LoggerManager : public NonCopyable
     template <int line, typename S, typename... Args>                          \
     TRANTOR_INLINE void name(const char *filename,                             \
                              const S &format_str,                              \
-                             Args &&...args)                                   \
+                             Args &&... args)                                  \
     {                                                                          \
         const auto level = ::trantor::Logger::LogLevel::level;                 \
         if (LoggerManager::getLevel() <= level)                                \
