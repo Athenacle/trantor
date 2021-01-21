@@ -1246,7 +1246,7 @@ void TcpConnectionImpl::sendFileInLoop(const BufferNodePtr &filePtr)
             {
                 filePtr->fileBytesToSend_ -= nSend;
                 filePtr->offset_ += static_cast<off_t>(nSend);
-                if (static_cast<size_t>(nSend) < n)
+                if (nSend < n)
                 {
                     if (!ioChannelPtr_->isWriting())
                     {
@@ -1373,12 +1373,12 @@ TcpConnectionImpl::TcpConnectionImpl(EventLoop *loop,
                                      const InetAddress &peerAddr,
                                      const std::shared_ptr<SSLContext> &ctxPtr,
                                      bool isServer)
-    : loop_(loop),
+    : isEncrypted_(true),
+      loop_(loop),
       ioChannelPtr_(new Channel(loop, socketfd)),
       socketPtr_(new Socket(socketfd)),
       localAddr_(localAddr),
-      peerAddr_(peerAddr),
-      isEncrypted_(true)
+      peerAddr_(peerAddr)
 {
     LOG_TRACE << "new connection:" << peerAddr.toIpPort() << "->"
               << localAddr.toIpPort();
