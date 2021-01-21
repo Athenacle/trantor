@@ -16,6 +16,7 @@
 
 #include <stdint.h>
 #include <string>
+#include <fmt/core.h>
 
 #define MICRO_SECONDS_PRE_SEC 1000000
 
@@ -268,3 +269,21 @@ class Date
     int64_t microSecondsSinceEpoch_{0};
 };
 }  // namespace trantor
+
+namespace fmt
+{
+template <>
+struct formatter<trantor::Date>
+{
+    constexpr auto parse(format_parse_context &ctx)
+    {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(const trantor::Date &p, FormatContext &ctx)
+    {
+        return format_to(ctx.out(), "{}", p.toFormattedString(true));
+    }
+};
+}  // namespace fmt

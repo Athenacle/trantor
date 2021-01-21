@@ -33,9 +33,17 @@ extern const char *strerror_tl(int savedErrno);
 
 using namespace trantor;
 
-AsyncFileLogger::AsyncFileLogger()
+void AsyncFileLogger::setup()
+{
+    startLogging();
+}
+
+AsyncFileLogger::AsyncFileLogger(const std::string &baseName,
+                                 const std::string &extName,
+                                 const std::string &path)
     : logBufferPtr_(new std::string), nextBufferPtr_(new std::string)
 {
+    setFileName(baseName, extName, path);
     logBufferPtr_->reserve(kMemBufferSize);
     nextBufferPtr_->reserve(kMemBufferSize);
 }

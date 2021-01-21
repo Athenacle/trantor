@@ -7,15 +7,9 @@
 using namespace std::chrono_literals;
 int main()
 {
-    trantor::AsyncFileLogger asyncFileLogger;
-    asyncFileLogger.setFileName("async_test");
-    asyncFileLogger.startLogging();
-    trantor::Logger::setOutputFunction(
-        [&](const char *msg, const uint64_t len) {
-            asyncFileLogger.output(msg, len);
-        },
-        [&]() { asyncFileLogger.flush(); });
-    asyncFileLogger.setFileSizeLimit(100000000);
+    trantor::logger::LoggerManager::setLoggerImplement<
+        trantor::AsyncFileLogger>("async_test")
+        ->setFileSizeLimit(100000000);
     int i = 0;
     while (i < 1000000)
     {

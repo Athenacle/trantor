@@ -17,9 +17,12 @@
 #include <trantor/utils/NonCopyable.h>
 #include <trantor/utils/Date.h>
 #include <trantor/utils/LogStream.h>
+#include <fmt/core.h>
 #include <string.h>
 #include <functional>
 #include <iostream>
+#include <memory>
+#include <mutex>
 
 namespace trantor
 {
@@ -81,21 +84,6 @@ class Logger : public NonCopyable
     LogStream &stream();
 
     /**
-     * @brief Set the output function.
-     *
-     * @param outputFunc The function to output a log message.
-     * @param flushFunc The function to flush.
-     * @note Logs are output to the standard output by default.
-     */
-    static void setOutputFunction(
-        std::function<void(const char *msg, const uint64_t len)> outputFunc,
-        std::function<void()> flushFunc)
-    {
-        outputFunc_() = outputFunc;
-        flushFunc_() = flushFunc;
-    }
-
-    /**
      * @brief Set the log level. Logs below the level are not printed.
      *
      * @param level
@@ -116,42 +104,25 @@ class Logger : public NonCopyable
     }
 
   protected:
-    static void defaultOutputFunction(const char *msg, const uint64_t len)
-    {
-        fwrite(msg, 1, len, stdout);
-    }
-    static void defaultFlushFunction()
-    {
-        fflush(stdout);
-    }
-    void formatTime();
     static LogLevel &logLevel_()
     {
 #ifdef RELEASE
         static LogLevel logLevel = LogLevel::kInfo;
 #else
-        static LogLevel logLevel = LogLevel::kDebug;
+        static LogLevel logLevel = LogLevel::kTrace;
 #endif
         return logLevel;
     }
-    static std::function<void(const char *msg, const uint64_t len)>
-        &outputFunc_()
-    {
-        static std::function<void(const char *msg, const uint64_t len)>
-            outputFunc = Logger::defaultOutputFunction;
-        return outputFunc;
-    }
-    static std::function<void()> &flushFunc_()
-    {
-        static std::function<void()> flushFunc = Logger::defaultFlushFunction;
-        return flushFunc;
-    }
+
     LogStream logStream_;
-    Date date_{Date::now()};
+
     SourceFile sourceFile_;
     int fileLine_;
     LogLevel level_;
+    const char *func_{nullptr};
 };
+
+extern const char *logLevelStr[];
 #ifdef NDEBUG
 #define LOG_TRACE                                                          \
     if (0)                                                                 \
@@ -283,4 +254,139 @@ class Logger : public NonCopyable
 #endif
 
 const char *strerror_tl(int savedErrno);
+
+namespace logger
+{
+class AbstractLogger
+{
+  protected:
+    using level = trantor::Logger::LogLevel;
+    bool newline_{true};
+
+  public:
+    auto newLine() const
+    {
+        return newline_;
+    }
+    virtual void setup()
+    {
+    }
+    virtual void output(level, const std::string &) = 0;
+    virtual void flush() = 0;
+    virtual ~AbstractLogger() = default;
+};
+
+class MarkLogger : public trantor::logger::AbstractLogger
+{
+  public:
+    virtual void print(const char *msg, size_t length) = 0;
+
+    virtual void output(level level, const std::string &) override;
+    virtual ~MarkLogger()
+    {
+    }
+};
+
+class LoggerManager : public NonCopyable
+{
+    using level = trantor::Logger::LogLevel;
+
+    static LoggerManager manager_;
+
+    static level level_;
+
+    std::shared_ptr<trantor::logger::AbstractLogger> implement_;
+
+  public:
+    template <class L, class... Args>
+    static std::shared_ptr<L> setLoggerImplement(Args... args)
+    {
+        static_assert(
+            std::is_base_of<trantor::logger::AbstractLogger, L>::value,
+            "setLoggerImplement must be called with class based on "
+            "trantor::logger::AbstractLogger");
+
+        auto ptr = std::make_shared<L>(std::forward<Args>(args)...);
+        manager_.implement_ = ptr;
+        ptr->setup();
+        return ptr;
+    }
+
+    static void setLevel(level l)
+    {
+        level_ = l;
+    }
+    static void output(level,
+                       const std::string &,
+                       const char * = nullptr,
+                       int = -1,
+                       const char * = nullptr);
+
+    static level getLevel()
+    {
+        return level_;
+    }
+
+    static void flush()
+    {
+        manager_.implement_->flush();
+    }
+};
+
+#ifndef TRANTOR_INLINE
+#if defined(__GNUC__) || defined(__clang__)
+#define TRANTOR_INLINE inline __attribute__((always_inline))
+#else
+#define TRANTOR_INLINE inline
+#endif
+#endif
+
+#define BUILD_LOGGER_FUNC(level, name)                                       \
+    template <typename S, typename... Args>                                  \
+    TRANTOR_INLINE void name(const S &format_str, Args &&... args)           \
+    {                                                                        \
+        const auto l = trantor::Logger::LogLevel::level;                     \
+        if (LoggerManager::getLevel() <= l)                                  \
+        {                                                                    \
+            auto msg = fmt::format(format_str, std::forward<Args>(args)...); \
+            LoggerManager::output(l, msg);                                   \
+        }                                                                    \
+    }                                                                        \
+    template <int line, typename S, typename... Args>                        \
+    TRANTOR_INLINE void name(const char *filename,                           \
+                             const S &format_str,                            \
+                             Args &&... args)                                \
+    {                                                                        \
+        const auto l = trantor::Logger::LogLevel::level;                     \
+        if (LoggerManager::getLevel() <= l)                                  \
+        {                                                                    \
+            auto msg = fmt::format(format_str, std::forward<Args>(args)...); \
+            LoggerManager::output(l, msg, filename, line);                   \
+        }                                                                    \
+    }
+
+BUILD_LOGGER_FUNC(kTrace, trace)
+BUILD_LOGGER_FUNC(kDebug, debug)
+BUILD_LOGGER_FUNC(kInfo, info)
+BUILD_LOGGER_FUNC(kWarn, warn)
+BUILD_LOGGER_FUNC(kError, error)
+BUILD_LOGGER_FUNC(kFatal, fatal)
+
+#undef BUILD_LOGGER_FUNC
+
+#define TRANTOR_TRACE(...) \
+    (::trantor::logger::trace<__LINE__>(__FILE__, __VA_ARGS__))
+#define TRANTOR_DEBUG(...) \
+    (::trantor::logger::debug<__LINE__>(__FILE__, __VA_ARGS__))
+#define TRANTOR_INFO(...) \
+    (::trantor::logger::info<__LINE__>(__FILE__, __VA_ARGS__))
+#define TRANTOR_WARN(...) \
+    (::trantor::logger::warn<__LINE__>(__FILE__, __VA_ARGS__))
+#define TRANTOR_ERROR(...) \
+    (::trantor::logger::error<__LINE__>(__FILE__, __VA_ARGS__))
+#define TRANTOR_FATAL(...) \
+    (::trantor::logger::fatal<__LINE__>(__FILE__, __VA_ARGS__))
+
+}  // namespace logger
+
 }  // namespace trantor

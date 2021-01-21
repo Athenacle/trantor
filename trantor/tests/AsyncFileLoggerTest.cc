@@ -4,15 +4,9 @@
 #include <thread>
 int main()
 {
-    trantor::AsyncFileLogger asyncFileLogger;
-    asyncFileLogger.setFileName("async_test");
-    asyncFileLogger.startLogging();
-    trantor::Logger::setOutputFunction(
-        [&](const char *msg, const uint64_t len) {
-            asyncFileLogger.output(msg, len);
-        },
-        [&]() { asyncFileLogger.flush(); });
-    asyncFileLogger.setFileSizeLimit(100000000);
+    auto ptr = trantor::logger::LoggerManager::setLoggerImplement<
+        trantor::AsyncFileLogger>("async_test");
+    ptr->setFileSizeLimit(100000000);
     //    LOG_DEBUG<<"debug log!"<<1;
     //    LOG_TRACE<<"trace log!"<<2;
     //    LOG_INFO<<"info log!"<<3;

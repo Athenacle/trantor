@@ -2,5 +2,7 @@
 
 clang-format --version
 
-find trantor -name *.h -o -name *.cc -exec dos2unix {} \;
+if command -v dos2unix ; then
+    find trantor -name *.h -o -name *.cc -exec dos2unix {} \;
+fi
 find trantor -name *.h -o -name *.cc|xargs clang-format -i -style=file
