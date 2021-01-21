@@ -14,7 +14,16 @@ environment:
       APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
       ARCH: x64
       
-init: []
+init:
+- cmake --version
+install:
+- cd C:\Tools\vcpkg
+- git pull
+- .\bootstrap-vcpkg.bat
+- vcpkg install fmt:x86-windows
+- vcpkg install fmt:x64-windows
+- vcpkg integrate install
+- cd %APPVEYOR_BUILD_FOLDER%
 
 before_build:
 - md build
@@ -24,3 +33,6 @@ build_script:
 - cmake --build . --config "%CONFIGURATION%"
 build:
   verbosity: minimal
+
+cache:
+- C:\Tools\vcpkg\installed\

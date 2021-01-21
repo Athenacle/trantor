@@ -31,6 +31,9 @@ else(BUILD_TRANTOR_SHARED)
   add_library(${PROJECT_NAME} STATIC)
 endif(BUILD_TRANTOR_SHARED)
 
+find_package(fmt REQUIRED)
+target_link_libraries(${PROJECT_NAME} PUBLIC fmt::fmt)
+
 # include directories
 target_include_directories(
   ${PROJECT_NAME}
@@ -54,6 +57,7 @@ set(TRANTOR_SOURCES
     trantor/utils/Date.cc
     trantor/utils/LogStream.cc
     trantor/utils/Logger.cc
+    trantor/utils/LoggerManager.cc
     trantor/utils/MsgBuffer.cc
     trantor/utils/SerialTaskQueue.cc
     trantor/utils/TimingWheel.cc

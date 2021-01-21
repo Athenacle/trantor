@@ -67,68 +67,8 @@ using namespace trantor;
 
 static thread_local uint64_t lastSecond_{0};
 static thread_local char lastTimeString_[32] = {0};
-#ifdef __linux__
-static thread_local pid_t threadId_{0};
-#else
-static thread_local uint64_t threadId_{0};
-#endif
-//   static thread_local LogStream logStream_;
 
-void Logger::formatTime()
-{
-    uint64_t now = date_.microSecondsSinceEpoch();
-    uint64_t microSec = now % 1000000;
-    now = now / 1000000;
-    if (now != lastSecond_)
-    {
-        lastSecond_ = now;
-#ifndef _MSC_VER
-        strncpy(lastTimeString_,
-                date_.toFormattedString(false).c_str(),
-                sizeof(lastTimeString_) - 1);
-#else
-        strncpy_s<sizeof lastTimeString_>(
-            lastTimeString_,
-            date_.toFormattedString(false).c_str(),
-            sizeof(lastTimeString_) - 1);
-#endif
-    }
-    logStream_ << T(lastTimeString_, 17);
-    char tmp[32];
-    snprintf(tmp,
-             sizeof(tmp),
-             ".%06llu UTC ",
-             static_cast<long long unsigned int>(microSec));
-    logStream_ << T(tmp, 12);
-#ifdef __linux__
-    if (threadId_ == 0)
-        threadId_ = static_cast<pid_t>(::syscall(SYS_gettid));
-#elif defined __FreeBSD__
-    if (threadId_ == 0)
-    {
-        threadId_ = pthread_getthreadid_np();
-    }
-#elif defined __OpenBSD__
-    if (threadId_ == 0)
-    {
-        threadId_ = getthrid();
-    }
-#elif defined _WIN32
-    if (threadId_ == 0)
-    {
-        std::stringstream ss;
-        ss << std::this_thread::get_id();
-        threadId_ = std::stoull(ss.str());
-    }
-#else
-    if (threadId_ == 0)
-    {
-        pthread_threadid_np(NULL, &threadId_);
-    }
-#endif
-    logStream_ << threadId_;
-}
-static const char *logLevelStr[Logger::LogLevel::kNumberOfLogLevels] = {
+const char *trantor::logLevelStr[Logger::LogLevel::kNumberOfLogLevels] = {
     " TRACE ",
     " DEBUG ",
     " INFO  ",
@@ -139,26 +79,26 @@ static const char *logLevelStr[Logger::LogLevel::kNumberOfLogLevels] = {
 Logger::Logger(SourceFile file, int line)
     : sourceFile_(file), fileLine_(line), level_(kInfo)
 {
-    formatTime();
-    logStream_ << T(logLevelStr[level_], 7);
+    // formatTime();
+    // logStream_ << T(logLevelStr[level_], 7);
 }
 Logger::Logger(SourceFile file, int line, LogLevel level)
     : sourceFile_(file), fileLine_(line), level_(level)
 {
-    formatTime();
-    logStream_ << T(logLevelStr[level_], 7);
+    // formatTime();
+    // logStream_ << T(logLevelStr[level_], 7);
 }
 Logger::Logger(SourceFile file, int line, LogLevel level, const char *func)
-    : sourceFile_(file), fileLine_(line), level_(level)
+    : sourceFile_(file), fileLine_(line), level_(level), func_(func)
 {
-    formatTime();
-    logStream_ << T(logLevelStr[level_], 7) << "[" << func << "] ";
+    // formatTime();
+    //   logStream_ << T(logLevelStr[level_], 7) << "[" << func << "] ";
 }
 Logger::Logger(SourceFile file, int line, bool)
     : sourceFile_(file), fileLine_(line), level_(kFatal)
 {
-    formatTime();
-    logStream_ << T(logLevelStr[level_], 7);
+    // formatTime();
+    //   logStream_ << T(logLevelStr[level_], 7);
     if (errno != 0)
     {
         logStream_ << strerror_tl(errno) << " (errno=" << errno << ") ";
@@ -166,13 +106,68 @@ Logger::Logger(SourceFile file, int line, bool)
 }
 Logger::~Logger()
 {
-    logStream_ << T(" - ", 3) << sourceFile_ << ':' << fileLine_ << '\n';
-    Logger::outputFunc_()(logStream_.bufferData(), logStream_.bufferLength());
+    trantor::logger::LoggerManager::output(level_,
+                                           logStream_.bufferData(),
+                                           logStream_.bufferLength(),
+                                           sourceFile_.data_,
+                                           fileLine_,
+                                           func_);
     if (level_ >= kError)
-        Logger::flushFunc_()();
+        trantor::logger::LoggerManager::flush();
     // logStream_.resetBuffer();
 }
 LogStream &Logger::stream()
 {
     return logStream_;
+}
+
+thread_local uint64_t tid;
+
+namespace
+{
+void setTid()
+{
+#ifdef __linux__
+    if (tid == 0)
+        tid = static_cast<pid_t>(::syscall(SYS_gettid));
+#elif defined __FreeBSD__
+    if (tid == 0)
+    {
+        tid = pthread_getthreadid_np();
+    }
+#elif defined __OpenBSD__
+    if (tid == 0)
+    {
+        tid = getthrid();
+    }
+#elif defined _WIN32
+    if (tid == 0)
+    {
+        std::stringstream ss;
+        ss << std::this_thread::get_id();
+        tid = std::stoull(ss.str());
+    }
+#else
+    if (tid == 0)
+    {
+        pthread_threadid_np(NULL, &tid);
+    }
+#endif
+}
+}  // namespace
+
+void trantor::logger::MarkLogger::output(level level,
+                                         const char *msg,
+                                         size_t length)
+{
+    if (tid == 0)
+    {
+        setTid();
+    }
+    auto message = fmt::format("{} [{}] {} - {}",
+                               trantor::Date::now(),
+                               trantor::logLevelStr[level],
+                               tid,
+                               msg);
+    print(message.c_str(), message.length());
 }

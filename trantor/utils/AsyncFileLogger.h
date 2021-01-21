@@ -16,6 +16,7 @@
 
 #include <trantor/utils/NonCopyable.h>
 #include <trantor/utils/Date.h>
+#include <trantor/utils/Logger.h>
 #include <thread>
 #include <mutex>
 #include <string>
@@ -34,9 +35,43 @@ using StringPtrQueue = std::queue<StringPtr>;
  * asynchronously.
  *
  */
-class AsyncFileLogger : NonCopyable
+class AsyncFileLogger : NonCopyable, public trantor::logger::MarkLogger
 {
+    /**
+     * @brief Start writing log files.
+     *
+     */
+    void startLogging();
+
+    /**
+     * @brief Set the log file name.
+     *
+     * @param baseName The base name of the log file.
+     * @param extName The extended name of the log file.
+     * @param path The location where the log file is stored.
+     */
+    void setFileName(const std::string &baseName,
+                     const std::string &extName,
+                     const std::string &path)
+    {
+        fileBaseName_ = baseName;
+        extName[0] == '.' ? fileExtName_ = extName
+                          : fileExtName_ = std::string(".") + extName;
+        filePath_ = path;
+        if (filePath_.length() == 0)
+            filePath_ = "./";
+        if (filePath_[filePath_.length() - 1] != '/')
+            filePath_ = filePath_ + "/";
+    }
+
   public:
+    virtual void setup() override;
+
+    virtual void print(const char *msg, size_t length) override
+    {
+        output(msg, length);
+    }
+
     /**
      * @brief Write the message to the log file.
      *
@@ -49,13 +84,7 @@ class AsyncFileLogger : NonCopyable
      * @brief Flush data from memory buffer to the log file.
      *
      */
-    void flush();
-
-    /**
-     * @brief Start writing log files.
-     *
-     */
-    void startLogging();
+    virtual void flush() override;
 
     /**
      * @brief Set the size limit of log files. When the log file size reaches
@@ -68,28 +97,10 @@ class AsyncFileLogger : NonCopyable
         sizeLimit_ = limit;
     }
 
-    /**
-     * @brief Set the log file name.
-     *
-     * @param baseName The base name of the log file.
-     * @param extName The extended name of the log file.
-     * @param path The location where the log file is stored.
-     */
-    void setFileName(const std::string &baseName,
-                     const std::string &extName = ".log",
-                     const std::string &path = "./")
-    {
-        fileBaseName_ = baseName;
-        extName[0] == '.' ? fileExtName_ = extName
-                          : fileExtName_ = std::string(".") + extName;
-        filePath_ = path;
-        if (filePath_.length() == 0)
-            filePath_ = "./";
-        if (filePath_[filePath_.length() - 1] != '/')
-            filePath_ = filePath_ + "/";
-    }
-    ~AsyncFileLogger();
-    AsyncFileLogger();
+    virtual ~AsyncFileLogger();
+    AsyncFileLogger(const std::string &baseName,
+                    const std::string &extName = ".log",
+                    const std::string &path = "./");
 
   protected:
     std::mutex mutex_;
