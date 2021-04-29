@@ -17,6 +17,7 @@
 #include <trantor/net/TcpConnection.h>
 #include <trantor/utils/TimingWheel.h>
 #include <list>
+#include <mutex>
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -37,7 +38,7 @@ enum class SSLStatus
 class SSLContext;
 class SSLConn;
 
-std::shared_ptr<SSLContext> newSSLContext(bool useOldTLS);
+std::shared_ptr<SSLContext> newSSLContext(bool useOldTLS, bool validateCert);
 std::shared_ptr<SSLContext> newSSLServerContext(const std::string &certPath,
                                                 const std::string &keyPath,
                                                 bool useOldTLS);
@@ -93,7 +94,9 @@ class TcpConnectionImpl : public TcpConnection,
                       const InetAddress &localAddr,
                       const InetAddress &peerAddr,
                       const std::shared_ptr<SSLContext> &ctxPtr,
-                      bool isServer = true);
+                      bool isServer = true,
+                      bool validateCert = true,
+                      const std::string &hostname = "");
 #endif
     virtual ~TcpConnectionImpl();
     virtual void send(const char *msg, size_t len) override;
@@ -169,7 +172,9 @@ class TcpConnectionImpl : public TcpConnection,
         return bytesReceived_;
     }
     virtual void startClientEncryption(std::function<void()> callback,
-                                       bool useOldTLS = false) override;
+                                       bool useOldTLS = false,
+                                       bool validateCert = true,
+                                       std::string hostname = "") override;
     virtual void startServerEncryption(const std::shared_ptr<SSLContext> &ctx,
                                        std::function<void()> callback) override;
     virtual bool isSSLConnection() const override
@@ -219,6 +224,11 @@ class TcpConnectionImpl : public TcpConnection,
     {
         closeCallback_ = cb;
     }
+    void setSSLErrorCallback(const SSLErrorCallback &cb)
+    {
+        sslErrorCallback_ = cb;
+    }
+
     void connectDestroyed();
     virtual void connectEstablished();
 
@@ -269,6 +279,7 @@ class TcpConnectionImpl : public TcpConnection,
     CloseCallback closeCallback_;
     WriteCompleteCallback writeCompleteCallback_;
     HighWaterMarkCallback highWaterMarkCallback_;
+    SSLErrorCallback sslErrorCallback_;
     void handleClose();
     void handleError();
     // virtual void sendInLoop(const std::string &msg);
@@ -295,6 +306,7 @@ class TcpConnectionImpl : public TcpConnection,
 #ifdef USE_OPENSSL
   private:
     void doHandshaking();
+    bool validatePeerCertificate();
     struct SSLEncryption
     {
         SSLStatus statusOfSSL_ = SSLStatus::Handshaking;
@@ -305,10 +317,13 @@ class TcpConnectionImpl : public TcpConnection,
         bool isServer_{false};
         bool isUpgrade_{false};
         std::function<void()> upgradeCallback_;
+        std::string hostname_;
     };
     std::unique_ptr<SSLEncryption> sslEncryptionPtr_;
     void startClientEncryptionInLoop(std::function<void()> &&callback,
-                                     bool useOldTLS);
+                                     bool useOldTLS,
+                                     bool validateCert,
+                                     const std::string &hostname);
     void startServerEncryptionInLoop(const std::shared_ptr<SSLContext> &ctx,
                                      std::function<void()> &&callback);
 #endif

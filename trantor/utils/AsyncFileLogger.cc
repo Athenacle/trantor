@@ -64,7 +64,7 @@ AsyncFileLogger::~AsyncFileLogger()
         {
             writeBuffers_.push(logBufferPtr_);
         }
-        if (writeBuffers_.size() > 0)
+        while (!writeBuffers_.empty())
         {
             StringPtr tmpPtr = (StringPtr &&) writeBuffers_.front();
             writeBuffers_.pop();
@@ -158,7 +158,7 @@ void AsyncFileLogger::logThreadFunc()
             tmpBuffers_.swap(writeBuffers_);
         }
 
-        while (tmpBuffers_.size() > 0)
+        while (!tmpBuffers_.empty())
         {
             StringPtr tmpPtr = (StringPtr &&) tmpBuffers_.front();
             tmpBuffers_.pop();

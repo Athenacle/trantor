@@ -17,6 +17,7 @@
 #include <trantor/utils/NonCopyable.h>
 #include <trantor/utils/Date.h>
 #include <trantor/utils/Logger.h>
+#include <trantor/exports.h>
 #include <thread>
 #include <mutex>
 #include <string>
@@ -35,7 +36,8 @@ using StringPtrQueue = std::queue<StringPtr>;
  * asynchronously.
  *
  */
-class AsyncFileLogger : NonCopyable, public trantor::logger::MarkLogger
+class TRANTOR_EXPORT AsyncFileLogger : NonCopyable,
+                                       public trantor::logger::MarkLogger
 {
     /**
      * @brief Start writing log files.

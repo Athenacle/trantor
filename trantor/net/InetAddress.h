@@ -21,6 +21,7 @@
 #define MUDUO_NET_INETADDRESS_H
 
 #include <trantor/utils/Date.h>
+#include <trantor/exports.h>
 
 #ifdef _WIN32
 #include <ws2tcpip.h>
@@ -41,7 +42,7 @@ namespace trantor
  * @brief Wrapper of sockaddr_in. This is an POD interface class.
  *
  */
-class InetAddress
+class TRANTOR_EXPORT InetAddress
 {
   public:
     /**
@@ -71,7 +72,8 @@ class InetAddress
      *
      * @param addr
      */
-    explicit InetAddress(const struct sockaddr_in &addr) : addr_(addr)
+    explicit InetAddress(const struct sockaddr_in &addr)
+        : addr_(addr), isUnspecified_(false)
     {
     }
 
@@ -82,7 +84,7 @@ class InetAddress
      * @param addr
      */
     explicit InetAddress(const struct sockaddr_in6 &addr)
-        : addr6_(addr), isIpV6_(true)
+        : addr6_(addr), isIpV6_(true), isUnspecified_(false)
     {
     }
 
@@ -163,6 +165,7 @@ class InetAddress
     {
         addr6_ = addr6;
         isIpV6_ = (addr6_.sin6_family == AF_INET6);
+        isUnspecified_ = false;
     }
 
     /**
@@ -200,6 +203,14 @@ class InetAddress
         addr_.sin_port = port;
     }
 
+    /**
+     * @brief Return true if the address is not initalized.
+     */
+    inline bool isUnspecified() const
+    {
+        return isUnspecified_;
+    }
+
   private:
     union
     {
@@ -207,6 +218,7 @@ class InetAddress
         struct sockaddr_in6 addr6_;
     };
     bool isIpV6_{false};
+    bool isUnspecified_{true};
 };
 
 }  // namespace trantor
