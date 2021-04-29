@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <trantor/exports.h>
 #include <stdint.h>
 #include <string>
 #include <fmt/core.h>
@@ -26,7 +27,7 @@ namespace trantor
  * @brief This class represents a time point.
  *
  */
-class Date
+class TRANTOR_EXPORT Date
 {
   public:
     Date() : microSecondsSinceEpoch_(0){};
@@ -166,6 +167,16 @@ class Date
     int64_t microSecondsSinceEpoch() const
     {
         return microSecondsSinceEpoch_;
+    }
+
+    /**
+     * @brief Get the number of seconds since 1970-01-01 00:00.
+     *
+     * @return int64_t
+     */
+    int64_t secondsSinceEpoch() const
+    {
+        return microSecondsSinceEpoch_ / MICRO_SECONDS_PRE_SEC;
     }
 
     /**

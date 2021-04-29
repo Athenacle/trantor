@@ -13,6 +13,7 @@
  */
 
 #pragma once
+#include <trantor/exports.h>
 #include <trantor/net/EventLoop.h>
 #include <trantor/net/InetAddress.h>
 #include <trantor/utils/NonCopyable.h>
@@ -25,14 +26,15 @@
 namespace trantor
 {
 class SSLContext;
-std::shared_ptr<SSLContext> newSSLServerContext(const std::string &certPath,
-                                                const std::string &keyPath,
-                                                bool useOldTLS = false);
+TRANTOR_EXPORT std::shared_ptr<SSLContext> newSSLServerContext(
+    const std::string &certPath,
+    const std::string &keyPath,
+    bool useOldTLS = false);
 /**
  * @brief This class represents a TCP connection.
  *
  */
-class TcpConnection
+class TRANTOR_EXPORT TcpConnection
 {
   public:
     TcpConnection() = default;
@@ -225,9 +227,13 @@ class TcpConnection
      *
      * @param callback The callback is called when the SSL connection is
      * established.
+     * @param hostname The server hostname for SNI. If it is empty, the SNI is
+     * not used.
      */
     virtual void startClientEncryption(std::function<void()> callback,
-                                       bool useOldTLS = false) = 0;
+                                       bool useOldTLS = false,
+                                       bool validateCert = true,
+                                       std::string hostname = "") = 0;
 
     /**
      * @brief Start the SSL encryption on the connection (as a server).
@@ -238,6 +244,9 @@ class TcpConnection
      */
     virtual void startServerEncryption(const std::shared_ptr<SSLContext> &ctx,
                                        std::function<void()> callback) = 0;
+
+  protected:
+    bool validateCert_ = false;
 
   private:
     std::shared_ptr<void> contextPtr_;

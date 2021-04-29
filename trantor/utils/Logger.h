@@ -18,6 +18,7 @@
 #include <trantor/utils/Date.h>
 #include <trantor/utils/LogStream.h>
 #include <fmt/core.h>
+#include <trantor/exports.h>
 #include <string.h>
 #include <functional>
 #include <iostream>
@@ -30,7 +31,7 @@ namespace trantor
  * @brief This class implements log functions.
  *
  */
-class Logger : public NonCopyable
+class TRANTOR_EXPORT Logger : public NonCopyable
 {
   public:
     enum LogLevel

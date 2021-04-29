@@ -15,10 +15,13 @@
 #include "Connector.h"
 #include "inner/TcpConnectionImpl.h"
 #include <trantor/net/EventLoop.h>
+
+#include <functional>
+#include <algorithm>
+
 #include "Socket.h"
 
 #include <stdio.h>  // snprintf
-#include <functional>
 
 using namespace trantor;
 using namespace std::placeholders;
@@ -140,8 +143,14 @@ void TcpClient::newConnection(int sockfd)
     if (sslCtxPtr_)
     {
 #ifdef USE_OPENSSL
-        conn = std::make_shared<TcpConnectionImpl>(
-            loop_, sockfd, localAddr, peerAddr, sslCtxPtr_, false);
+        conn = std::make_shared<TcpConnectionImpl>(loop_,
+                                                   sockfd,
+                                                   localAddr,
+                                                   peerAddr,
+                                                   sslCtxPtr_,
+                                                   false,
+                                                   validateCert_,
+                                                   SSLHostName_);
 #else
         LOG_FATAL << "OpenSSL is not found in your system!";
         abort();
@@ -162,6 +171,12 @@ void TcpClient::newConnection(int sockfd)
         std::lock_guard<std::mutex> lock(mutex_);
         connection_ = conn;
     }
+    conn->setSSLErrorCallback([this](SSLError err) {
+        if (sslErrorCallback_)
+        {
+            sslErrorCallback_(err);
+        }
+    });
     conn->connectEstablished();
 }
 
@@ -187,11 +202,23 @@ void TcpClient::removeConnection(const TcpConnectionPtr &conn)
     }
 }
 
-void TcpClient::enableSSL(bool useOldTLS)
+void TcpClient::enableSSL(bool useOldTLS,
+                          bool validateCert,
+                          std::string hostname)
 {
 #ifdef USE_OPENSSL
     /* Create a new OpenSSL context */
-    sslCtxPtr_ = newSSLContext(useOldTLS);
+    sslCtxPtr_ = newSSLContext(useOldTLS, validateCert);
+    validateCert_ = validateCert;
+    if (!hostname.empty())
+    {
+        std::transform(hostname.begin(),
+                       hostname.end(),
+                       hostname.begin(),
+                       tolower);
+        SSLHostName_ = std::move(hostname);
+    }
+
 #else
     LOG_FATAL << "OpenSSL is not found in your system!";
     abort();
