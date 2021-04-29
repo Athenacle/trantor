@@ -298,6 +298,9 @@ class LoggerManager : public NonCopyable
     std::shared_ptr<trantor::logger::AbstractLogger> implement_;
 
   public:
+    LoggerManager() : implement_(nullptr)
+    {
+    }
     template <class L, class... Args>
     static std::shared_ptr<L> setLoggerImplement(Args... args)
     {
