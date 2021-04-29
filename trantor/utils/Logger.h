@@ -18,6 +18,7 @@
 #include <trantor/utils/Date.h>
 #include <trantor/utils/LogStream.h>
 #include <fmt/core.h>
+#include <trantor/exports.h>
 #include <string.h>
 #include <functional>
 #include <iostream>
@@ -30,7 +31,7 @@ namespace trantor
  * @brief This class implements log functions.
  *
  */
-class Logger : public NonCopyable
+class TRANTOR_EXPORT Logger : public NonCopyable
 {
   public:
     enum LogLevel
@@ -298,6 +299,9 @@ class LoggerManager : public NonCopyable
     std::shared_ptr<trantor::logger::AbstractLogger> implement_;
 
   public:
+    LoggerManager() : implement_(nullptr)
+    {
+    }
     template <class L, class... Args>
     static std::shared_ptr<L> setLoggerImplement(Args... args)
     {

@@ -51,21 +51,24 @@ void LoggerManager::output(level l,
                            int line,
                            const char *func)
 {
-    std::string funcName, fileLine;
+    if (manager_.implement_ != nullptr)
+    {
+        std::string funcName, fileLine;
 
-    if (file != nullptr && line != -1)
-    {
-        auto end = file;
-        fileLine = fmt::format("({}:{})", end, line);
+        if (file != nullptr && line != -1)
+        {
+            auto end = file;
+            fileLine = fmt::format("({}:{})", end, line);
+        }
+        if (func != nullptr)
+        {
+            funcName = fmt::format("[{}]: ", func);
+        }
+        auto result = fmt::format(manager_.implement_->newLine() ? "{}{} {}\n"
+                                                                 : "{}{} {}",
+                                  funcName,
+                                  msg,
+                                  fileLine);
+        manager_.implement_->output(l, result);
     }
-    if (func != nullptr)
-    {
-        funcName = fmt::format("[{}]: ", func);
-    }
-    auto result =
-        fmt::format(manager_.implement_->newLine() ? "{}{} {}\n" : "{}{} {}",
-                    funcName,
-                    msg,
-                    fileLine);
-    manager_.implement_->output(l, result);
 }

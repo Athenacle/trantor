@@ -4,10 +4,11 @@ project(trantor)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules/)
 
 set(TRANTOR_MAJOR_VERSION 1)
-set(TRANTOR_MINOR_VERSION 1)
-set(TRANTOR_PATCH_VERSION 1)
+set(TRANTOR_MINOR_VERSION 4)
+set(TRANTOR_PATCH_VERSION 0)
+set(TRANTOR_REV_VERSION 0)
 set(TRANTOR_VERSION
-    ${TRANTOR_MAJOR_VERSION}.${TRANTOR_MINOR_VERSION}.${TRANTOR_PATCH_VERSION})
+    ${TRANTOR_MAJOR_VERSION}.${TRANTOR_MINOR_VERSION}.${TRANTOR_PATCH_VERSION}-r${TRANTOR_REV_VERSION})
 
 # Offer the user the choice of overriding the installation directories
 set(INSTALL_LIB_DIR lib CACHE PATH "Installation directory for libraries")
@@ -27,6 +28,13 @@ if(BUILD_TRANTOR_SHARED)
     set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${INSTALL_LIB_DIR}")
   endif("${isSystemDir}" STREQUAL "-1")
   add_library(${PROJECT_NAME} SHARED)
+  if(CMAKE_CXX_COMPILER_ID MATCHES MSVC)
+    # Ignore MSVC C4251 and C4275 warning of exporting std objects with no dll export
+    # We export class to facilitate maintenance, thus if you compile
+    # drogon on windows as a shared library, you will need to use
+    # exact same compiler for drogon and your app.
+    target_compile_options(${PROJECT_NAME} PUBLIC /wd4251 /wd4275)
+  endif()
 else(BUILD_TRANTOR_SHARED)
   add_library(${PROJECT_NAME} STATIC)
 endif(BUILD_TRANTOR_SHARED)
@@ -34,11 +42,15 @@ endif(BUILD_TRANTOR_SHARED)
 find_package(fmt REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC fmt::fmt)
 
+include(GenerateExportHeader)
+generate_export_header(${PROJECT_NAME} EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/exports/trantor/exports.h)
+
 # include directories
 target_include_directories(
   ${PROJECT_NAME}
   PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
          $<INSTALL_INTERFACE:${INSTALL_INCLUDE_DIR}>
+         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/exports>
   PRIVATE ${PROJECT_SOURCE_DIR}
           ${PROJECT_SOURCE_DIR}/trantor/utils
           ${PROJECT_SOURCE_DIR}/trantor/net
@@ -99,13 +111,13 @@ else()
 endif()
 target_sources(${PROJECT_NAME} PRIVATE ${TRANTOR_SOURCES})
 
+find_package(Threads)
+target_link_libraries(${PROJECT_NAME} PUBLIC Threads::Threads)
 if(WIN32)
   target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32 Rpcrt4)
   if(OpenSSL_FOUND)
     target_link_libraries(${PROJECT_NAME} PRIVATE Crypt32 Secur32)
   endif(OpenSSL_FOUND)
-else(WIN32)
-  target_link_libraries(${PROJECT_NAME} PRIVATE pthread)
 endif(WIN32)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 14)
@@ -157,9 +169,11 @@ source_group("Public API"
 install(TARGETS trantor
                 # IMPORTANT: Add the trantor library to the "export-set"
         EXPORT TrantorTargets
+        RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
         ARCHIVE DESTINATION "${INSTALL_LIB_DIR}" COMPONENT lib
         LIBRARY DESTINATION "${INSTALL_LIB_DIR}" COMPONENT lib)
-
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/exports/trantor/exports.h
+        DESTINATION ${INSTALL_INCLUDE_DIR}/trantor)
 install(FILES ${public_net_headers}
         DESTINATION ${INSTALL_INCLUDE_DIR}/trantor/net)
 install(FILES ${public_utils_headers}
